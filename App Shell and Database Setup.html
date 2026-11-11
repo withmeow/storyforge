@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="theme-color" content="#121212">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>StoryForge - Novelist Hub</title>
+    <style>
+        :root {
+            --bg-primary: #121212; --bg-secondary: #1e1e1e; --bg-card: #2a2a2a;
+            --text-primary: #e0e0e0; --text-secondary: #a0a0a0; --accent: #bb86fc;
+            --accent-dark: #3700b3; --input-bg: #333333; --success: #03dac6;
+            --danger: #cf6679; --wood-dark: #5c3a21; --wood-light: #8b5a2b;
+            --spotify-green: #1db954; --spotify-green-hover: #1ed760;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-primary); color: var(--text-primary);
+            height: 100dvh; display: flex; flex-direction: column; overflow: hidden;
+        }
+        header {
+            background-color: var(--bg-secondary); padding: 15px 10px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.5); z-index: 10; height: 60px; flex-shrink: 0;
+        }
+        header h1 {
+            font-size: 18px; color: var(--accent); flex: 1; text-align: center;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0 10px;
+        }
+        .header-btn { background: none; border: none; color: var(--text-primary); font-size: 18px; padding: 5px 10px; min-width: 40px; }
+        .header-btn.hidden { visibility: hidden; }
+        #editorStats { font-size: 12px; color: var(--text-secondary); margin-right: 5px; white-space: nowrap; }
+        main { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 100px; } /* Increased padding for music player */
+        .view { display: none; animation: fadeIn 0.2s ease-in-out; }
+        .view.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        #editorView.active { padding: 0; display: flex; flex-direction: column; height: 100%; animation: none; }
+        
+        .bookshelf-container {
+            background: linear-gradient(to bottom, #3e2723, #5c3a21); border: 8px solid #4e342e;
+            border-radius: 10px; padding: 20px 10px; min-height: 300px; box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+        }
+        .shelf-row {
+            display: flex; align-items: flex-end; justify-content: center; flex-wrap: wrap; gap: 4px;
+            padding-bottom: 15px; border-bottom: 12px solid var(--wood-light);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.5); margin-bottom: 20px;
+        }
+        .shelf-row:last-child { border-bottom: none; margin-bottom: 0; }
+        .book-spine {
+            width: 45px; height: 130px; border-radius: 3px 3px 0 0;
+            display: flex; align-items: center; justify-content: center; cursor: pointer;
+            box-shadow: inset 3px 0 5px rgba(0,0,0,0.4), inset -3px 0 5px rgba(0,0,0,0.4), 2px 2px 5px rgba(0,0,0,0.6);
+            position: relative; transition: transform 0.2s ease;
+        }
+        .book-spine:active { transform: translateY(-15px) scale(1.05); }
+        .book-spine::before, .book-spine::after { content: ''; position: absolute; left: 0; right: 0; height: 4px; background: rgba(255,255,255,0.3); }
+        .book-spine::before { top: 10px; } .book-spine::after { bottom: 10px; }
+        .book-title-vertical {
+            writing-mode: vertical-rl; transform: rotate(180deg); color: white; font-size: 11px; font-weight: bold;
+            text-shadow: 1px 1px 2px black; max-height: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 15px 0;
+        }
+        .add-book-spine {
+            width: 45px; height: 130px; border: 2px dashed rgba(255,255,255,0.5); border-radius: 3px 3px 0 0;
+            display: flex; align-items: center; justify-content: center; cursor: pointer; color: rgba(255,255,255,0.7); font-size: 24px; transition: transform 0.2s;
+        }
+        .add-book-spine:active { transform: translateY(-10px); }
+        
+        .list-container { display: flex; flex-direction: column; gap: 10px; }
+        .list-item {
+            background-color: var(--bg-card); border-radius: 8px; padding: 15px;
+            text-align: left; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .list-item:active { transform: scale(0.98); }
+        .list-item h4 { font-size: 16px; margin-bottom: 5px; color: var(--accent); }
+        .list-item p { font-size: 12px; color: var(--text-secondary); }
+        .empty-state { text-align: center; color: var(--text-secondary); padding: 40px 20px; font-style: italic; }
+        
+        .dash-header { margin-bottom: 20px; }
+        .dash-header h2 { font-size: 24px; margin-bottom: 5px; }
+        .dash-header p { color: var(--text-secondary); font-size: 14px; }
+        .dash-total-words { color: var(--success); font-weight: bold; font-size: 14px; margin-top: 5px; }
+        .module-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .module-card {
+            background-color: var(--bg-card); border-radius: 12px; padding: 20px;
+            text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .module-card .icon { font-size: 32px; margin-bottom: 10px; }
+        .module-card h3 { font-size: 16px; margin-bottom: 5px; }
+        .module-card p { font-size: 12px; color: var(--text-secondary); }
+        
+        #editorTextarea {
+            flex: 1; width: 100%; background-color: var(--bg-primary); color: var(--text-primary);
+            border: none; padding: 20px; padding-bottom: 50vh; font-size: 18px; line-height: 1.6;
+            resize: none; outline: none; font-family: Georgia, serif;
+        }
+        
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 14px; color: var(--accent); margin-bottom: 8px; font-weight: bold; }
+        .form-control {
+            width: 100%; background-color: var(--input-bg); color: var(--text-primary);
+            border: 1px solid #444; border-radius: 8px; padding: 12px; font-size: 16px; font-family: inherit; outline: none;
+        }
+        .form-control:focus { border-color: var(--accent); }
+        textarea.form-control { min-height: 100px; resize: vertical; line-height: 1.5; }
+        select.form-control { appearance: none; }
+        
+        .save-btn, .action-btn, .danger-btn {
+            width: 100%; border: none; padding: 15px; border-radius: 8px; font-size: 16px; font-weight: bold; margin-top: 10px; cursor: pointer;
+        }
+        .save-btn { background-color: var(--accent-dark); color: white; }
+        .save-btn:active { background-color: var(--accent); }
+        .action-btn { background-color: var(--bg-card); border: 1px solid var(--accent); color: var(--accent); }
+        .action-btn:active { background-color: var(--accent-dark); color: white; }
+        .danger-btn { background-color: var(--danger); color: #121212; margin-top: 30px; }
+        
+        .assistant-card, .settings-section {
+            background-color: var(--bg-card); border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .assistant-card h3, .settings-section h3 { color: var(--accent); margin-bottom: 10px; font-size: 18px; }
+        .assistant-card p, .settings-section p { color: var(--text-primary); line-height: 1.5; font-size: 16px; }
+        .settings-section p { color: var(--text-secondary); font-size: 14px; }
+        
+        .goal-input-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        .goal-input-group input { flex: 1; }
+        .progress-bar-bg { width: 100%; height: 10px; background-color: var(--input-bg); border-radius: 5px; overflow: hidden; margin-top: 10px; }
+        .progress-bar-fill { height: 100%; background-color: var(--success); width: 0%; transition: width 0.3s ease; }
+        .goal-text { text-align: center; margin-top: 8px; font-size: 14px; color: var(--text-secondary); }
+
+        nav {
+            position: fixed; bottom: 0; left: 0; right: 0; background-color: var(--bg-secondary);
+            display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 5px rgba(0,0,0,0.5); z-index: 10;
+        }
+        .nav-btn {
+            background: none; border: none; color: var(--text-secondary);
+            font-size: 10px; display: flex; flex-direction: column; align-items: center; gap: 4px;
+        }
+        .nav-btn .icon { font-size: 20px; }
+        .nav-btn.active { color: var(--accent); }
+
+        #catOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; overflow: hidden; }
+        #catSprite {
+            position: absolute; width: 80px; height: 80px; pointer-events: auto; user-select: none; touch-action: none;
+            cursor: grab; filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.5)); transition: transform 0.1s;
+        }
+        #catSprite:active { cursor: grabbing; }
+        .heart-particle { position: absolute; font-size: 24px; pointer-events: none; animation: floatUp 1s ease-out forwards; }
+        @keyframes floatUp { 0% { opacity: 1; transform: translateY(0) scale(1); } 100% { opacity: 0; transform: translateY(-60px) scale(1.5); } }
+        
+        .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 15px; }
+        .cat-option { background-color: var(--input-bg); border: 2px solid #444; border-radius: 8px; padding: 10px; text-align: center; cursor: pointer; transition: all 0.2s; }
+        .cat-option:hover { border-color: var(--accent); }
+        .cat-option.selected { border-color: var(--accent); background-color: var(--accent-dark); box-shadow: 0 0 10px var(--accent); }
+        .cat-option .cat-preview { width: 50px; height: 50px; object-fit: contain; margin-bottom: 5px; }
+        .cat-option .cat-name { font-size: 11px; color: var(--text-secondary); }
+        .cat-option.selected .cat-name { color: white; }
+        
+        .delete-icon-btn { background: none; border: none; font-size: 18px; color: var(--danger); padding: 5px 10px; cursor: pointer; }
+        .delete-icon-btn:active { transform: scale(0.9); }
+
+        #zenExitBtn {
+            position: fixed; top: 20px; right: 20px; background: rgba(255,255,255,0.1); color: white;
+            border: none; border-radius: 50%; width: 40px; height: 40px; font-size: 20px;
+            display: none; z-index: 10000; cursor: pointer;
+        }
+        body.zen-mode header, body.zen-mode nav, body.zen-mode #editorStats, body.zen-mode #musicPlayerBar { display: none !important; }
+        body.zen-mode main { padding: 0; padding-bottom: 0; }
+        body.zen-mode #editorView.active { height: 100dvh; }
+        body.zen-mode #editorTextarea { padding-bottom: 20px; }
+        body.zen-mode #zenExitBtn { display: block; }
+
+        .search-container { display: flex; gap: 10px; }
+        .search-container input { flex: 1; }
+
+        #customModalOverlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); z-index: 100000;
+            display: none; align-items: center; justify-content: center;
+        }
+        #customModalOverlay.active { display: flex; }
+        .modal-box {
+            background: var(--bg-card); border-radius: 12px; padding: 25px;
+            width: 85%; max-width: 350px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            text-align: center;
+        }
+        .modal-title { font-size: 18px; margin-bottom: 20px; color: var(--text-primary); }
+        .modal-input {
+            width: 100%; background: var(--input-bg); border: 1px solid #444;
+            color: white; padding: 12px; border-radius: 8px; font-size: 16px;
+            margin-bottom: 20px; outline: none;
+        }
+        .modal-input:focus { border-color: var(--accent); }
+        .modal-buttons { display: flex; gap: 10px; justify-content: center; }
+        .modal-btn {
+            flex: 1; padding: 12px; border: none; border-radius: 8px;
+            font-size: 16px; font-weight: bold; cursor: pointer;
+        }
+        .modal-btn.cancel { background: #444; color: white; }
+        .modal-btn.confirm { background: var(--accent-dark); color: white; }
+        .modal-btn.danger { background: var(--danger); color: #121212; }
+
+        /* --- MUSIC PLAYER STYLES (Spotify Inspired) --- */
+        .upload-music-btn {
+            background-color: var(--spotify-green); color: black; font-weight: bold;
+            border: none; padding: 15px; border-radius: 30px; font-size: 16px;
+            width: 100%; margin-bottom: 20px; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; gap: 10px;
+        }
+        .upload-music-btn:active { background-color: var(--spotify-green-hover); transform: scale(0.98); }
+        
+        .track-item {
+            display: flex; align-items: center; padding: 10px; border-radius: 8px;
+            background-color: var(--bg-card); margin-bottom: 10px; cursor: pointer;
+        }
+        .track-item:active { background-color: #333; }
+        .track-item.playing { background-color: #333; border-left: 4px solid var(--spotify-green); }
+        .track-icon { font-size: 24px; margin-right: 15px; color: var(--text-secondary); }
+        .track-info { flex: 1; overflow: hidden; }
+        .track-title { font-size: 14px; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .track-artist { font-size: 12px; color: var(--text-secondary); }
+        .track-item.playing .track-title { color: var(--spotify-green); }
+        
+        #musicPlayerBar {
+            position: fixed; bottom: 60px; left: 0; right: 0;
+            background-color: #282828; padding: 10px 15px;
+            display: none; flex-direction: column; z-index: 9998;
+            border-top: 1px solid #333;
+        }
+        #musicPlayerBar.active { display: flex; }
+        .player-top { display: flex; align-items: center; margin-bottom: 8px; }
+        .player-info { flex: 1; overflow: hidden; margin-right: 10px; }
+        .player-title { font-size: 14px; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .player-controls { display: flex; align-items: center; gap: 15px; }
+        .control-btn { background: none; border: none; color: white; font-size: 20px; cursor: pointer; }
+        .play-pause-btn { font-size: 28px; color: white; }
+        
+        .progress-container { display: flex; align-items: center; gap: 10px; font-size: 10px; color: var(--text-secondary); }
+        #seekBar {
+            flex: 1; -webkit-appearance: none; height: 4px; background: #535353;
+            border-radius: 2px; outline: none;
+        }
+        #seekBar::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 12px; height: 12px;
+            background: white; border-radius: 50%; cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <button class="header-btn" id="backBtn" onclick="goBack()">←</button>
+        <h1 id="headerTitle">My Bookshelf</h1>
+        <div style="display: flex; align-items: center;">
+            <span id="editorStats" style="display: none;">0w | 0c</span>
+            <button class="header-btn hidden" id="zenBtn" onclick="toggleZenMode()">🧘</button>
+            <button class="header-btn" id="actionBtn" onclick="handleAction()">+</button>
+        </div>
+    </header>
+    <main>
+        <div id="homeView" class="view active"><div class="bookshelf-container" id="bookshelfContainer"></div></div>
+        
+        <div id="dashView" class="view">
+            <div class="dash-header">
+                <h2 id="dashBookTitle">Novel Title</h2>
+                <p id="dashBookSummary">Summary goes here...</p>
+                <p id="dashTotalWords" class="dash-total-words">0 words total</p>
+            </div>
+            <div class="form-group">
+                <div class="search-container">
+                    <input type="text" id="dashSearch" class="form-control" placeholder="🔍 Type to search..." onkeypress="if(event.key === 'Enter') handleSearch()">
+                    <button class="action-btn" style="width: auto; margin-top: 0; padding: 12px 20px;" onclick="handleSearch()">Search</button>
+                </div>
+            </div>
+            <div class="module-grid">
+                <div class="module-card" onclick="openChapters()"><div class="icon">📖</div><h3>Chapters</h3><p>Write manuscript</p></div>
+                <div class="module-card" onclick="openCharacters()"><div class="icon">👤</div><h3>Characters</h3><p>Manage cast</p></div>
+                <div class="module-card" onclick="openSettingsModule()"><div class="icon">🌍</div><h3>Settings</h3><p>Scenery & Locations</p></div>
+                <div class="module-card" onclick="openPlots()"><div class="icon">🗺️</div><h3>Plot</h3><p>Structure story</p></div>
+            </div>
+            <button class="action-btn" style="margin-top: 20px;" onclick="exportNovel()">📥 Export Novel as .txt</button>
+            <button class="danger-btn" onclick="deleteBook()">🗑️ Delete This Book</button>
+        </div>
+
+        <div id="searchResultsView" class="view"><div class="list-container" id="searchResultsList"></div></div>
+        <div id="chaptersView" class="view"><div class="list-container" id="chapterList"></div></div>
+        <div id="editorView" class="view"><textarea id="editorTextarea" placeholder="Start writing your masterpiece..." oninput="onType()"></textarea></div>
+        <div id="charactersView" class="view"><div class="list-container" id="characterList"></div></div>
+        
+        <div id="characterDetailView" class="view">
+            <div class="form-group"><label>Name</label><input type="text" id="charName" class="form-control" placeholder="e.g. John Doe"></div>
+            <div class="form-group"><label>Role</label><input type="text" id="charRole" class="form-control" placeholder="e.g. Protagonist, Antagonist"></div>
+            <div class="form-group"><label>Age</label><input type="text" id="charAge" class="form-control" placeholder="e.g. 25"></div>
+            <div class="form-group"><label>Appearance</label><textarea id="charAppearance" class="form-control" placeholder="Hair color, height, distinguishing features..."></textarea></div>
+            <div class="form-group"><label>Personality</label><textarea id="charPersonality" class="form-control" placeholder="Traits, flaws, habits..."></textarea></div>
+            <div class="form-group"><label>Backstory</label><textarea id="charBackstory" class="form-control" placeholder="History, motivations, secrets..."></textarea></div>
+            <button class="save-btn" onclick="saveCharacterDetail()">Save Character</button>
+            <button class="danger-btn" onclick="deleteCharacter()">🗑️ Delete Character</button>
+        </div>
+        
+        <div id="settingsModuleView" class="view"><div class="list-container" id="settingList"></div></div>
+        <div id="settingDetailView" class="view">
+            <div class="form-group"><label>Location Name</label><input type="text" id="setName" class="form-control" placeholder="e.g. The Dark Forest"></div>
+            <div class="form-group"><label>Description</label><textarea id="setDesc" class="form-control" placeholder="General overview of the place..."></textarea></div>
+            <div class="form-group"><label>Sensory Details (Sight, Sound, Smell)</label><textarea id="setSensory" class="form-control" placeholder="What does it look, sound, and smell like?"></textarea></div>
+            <button class="save-btn" onclick="saveSettingDetail()">Save Setting</button>
+            <button class="danger-btn" onclick="deleteSetting()">🗑️ Delete Location</button>
+        </div>
+        
+        <div id="plotsView" class="view"><div class="list-container" id="plotList"></div></div>
+        <div id="plotDetailView" class="view">
+            <div class="form-group"><label>Plot Point Title</label><input type="text" id="plotTitle" class="form-control" placeholder="e.g. The Hero meets the Mentor"></div>
+            <div class="form-group"><label>Story Act</label><select id="plotAct" class="form-control"><option value="Beginning">Beginning (Act 1)</option><option value="Middle">Middle (Act 2)</option><option value="Climax">Climax (Act 3)</option><option value="Ending">Ending (Resolution)</option></select></div>
+            <div class="form-group"><label>What happens?</label><textarea id="plotDesc" class="form-control" placeholder="Describe the events of this plot point..."></textarea></div>
+            <button class="save-btn" onclick="savePlotDetail()">Save Plot Point</button>
+            <button class="danger-btn" onclick="deletePlot()">🗑️ Delete Plot Point</button>
+        </div>
+        
+        <div id="assistantView" class="view">
+            <div class="assistant-card">
+                <h3>🎯 Daily Word Goal</h3>
+                <div class="goal-input-group"><input type="number" id="dailyGoalInput" class="form-control" placeholder="Set goal (e.g. 500)"><button class="action-btn" style="width: auto; margin-top: 0;" onclick="setDailyGoal()">Set</button></div>
+                <div class="progress-bar-bg"><div class="progress-bar-fill" id="goalProgressBar"></div></div>
+                <p class="goal-text" id="goalProgressText">0 / 0 words today</p>
+            </div>
+            <div class="assistant-card"><h3>💡 Writer's Block Cure</h3><p id="promptText">Tap the button below to get a random writing prompt!</p><button class="action-btn" onclick="generatePrompt()">Give me a prompt</button></div>
+            <div class="assistant-card"><h3>✨ Wisdom for Writers</h3><p id="quoteText">"You can always edit a bad page. You can't edit a blank page." - Jodi Picoult</p><button class="action-btn" onclick="generateQuote()">New Quote</button></div>
+        </div>
+
+        <!-- NEW MUSIC VIEW -->
+        <div id="musicView" class="view">
+            <div class="dash-header">
+                <h2>Your Library</h2>
+                <p>Upload MP3s to listen while you write.</p>
+            </div>
+            <input type="file" id="musicFileInput" accept="audio/mp3, audio/mpeg" multiple style="display: none;" onchange="handleMusicUpload(event)">
+            <button class="upload-music-btn" onclick="document.getElementById('musicFileInput').click()">
+                <span>📁</span> Upload MP3 Files
+            </button>
+            <div id="trackListContainer"></div>
+        </div>
+
+        <div id="appSettingsView" class="view">
+            <div class="settings-section">
+                <h3>🐱 Cat Companion Settings</h3><p>Customize your writing buddy!</p>
+                <div class="form-group" style="margin-top: 15px;"><label>Choose Your Cat:</label><div class="cat-grid" id="catSelectionGrid"></div></div>
+                <div class="form-group"><label>Cat Size:</label><select id="catSizeSelect" class="form-control" onchange="updateCatSettings()"><option value="50">Small (50px)</option><option value="80" selected>Medium (80px)</option><option value="110">Large (110px)</option><option value="150">Huge (150px)</option></select></div>
+                <div class="form-group"><label>Walking Speed:</label><select id="catSpeedSelect" class="form-control" onchange="updateCatSettings()"><option value="0.5">Slow (0.5)</option><option value="1.5" selected>Normal (1.5)</option><option value="3">Fast (3)</option><option value="6">Zoom! (6)</option></select></div>
+                <div class="form-group"><label>Toggle Cat:</label><button id="catToggleBtn" class="action-btn" onclick="toggleCat()">Disable Cat</button></div>
+            </div>
+            <div class="settings-section"><h3>About StoryForge</h3><p>Version 1.2.0 (Music Player)<br>Built for novelists, by an IT student.<br>Stores all data locally on your device with unlimited storage.</p></div>
+            <div class="settings-section"><h3>Data Management</h3><p>Warning: This will delete all your books, chapters, and characters permanently.</p><button class="danger-btn" onclick="resetAppData()">🗑️ Reset All App Data</button></div>
+        </div>
+    </main>
+    
+    <!-- MUSIC PLAYER BAR (Fixed above nav) -->
+    <div id="musicPlayerBar">
+        <div class="player-top">
+            <div class="player-info">
+                <div class="player-title" id="playerTitle">No song selected</div>
+            </div>
+            <div class="player-controls">
+                <button class="control-btn" onclick="prevTrack()">⏮</button>
+                <button class="control-btn play-pause-btn" id="playPauseBtn" onclick="togglePlay()">▶</button>
+                <button class="control-btn" onclick="nextTrack()">⏭</button>
+            </div>
+        </div>
+        <div class="progress-container">
+            <span id="currentTime">0:00</span>
+            <input type="range" id="seekBar" value="0" max="100" oninput="seekAudio()">
+            <span id="duration">0:00</span>
+        </div>
+    </div>
+
+    <nav id="bottomNav">
+        <button class="nav-btn active" onclick="goHome()"><span class="icon">📚</span><span>Library</span></button>
+        <button class="nav-btn" onclick="openAssistant()"><span class="icon">✨</span><span>Assistant</span></button>
+        <button class="nav-btn" onclick="openMusic()"><span class="icon">🎧</span><span>Music</span></button>
+        <button class="nav-btn" onclick="openAppSettings()"><span class="icon">⚙️</span><span>Settings</span></button>
+    </nav>
+    
+    <button id="zenExitBtn" onclick="toggleZenMode()">✕</button>
+    <div id="catOverlay"><img id="catSprite" src="" alt="Cat" /></div>
+
+    <div id="customModalOverlay">
+        <div class="modal-box">
+            <div class="modal-title" id="modalTitleText">Title</div>
+            <input type="text" id="modalInputField" class="modal-input" style="display:none;">
+            <div class="modal-buttons" id="modalButtonsContainer"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- INDEXEDDB DATABASE SYSTEM ---
+        const AppDB = {
+            db: null,
+            open: function() {
+                return new Promise((resolve) => {
+                    const req = indexedDB.open("StoryForgeDB", 1);
+                    req.onupgradeneeded = e => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains("store")) db.createObjectStore("store");
+                    };
+                    req.onsuccess = e => { this.db = e.target.result; resolve(); };
+                });
+            },
+            get: function(key) {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction("store", "readonly");
+                    const req = tx.objectStore("store").get(key);
+                    req.onsuccess = () => resolve(req.result);
+                });
+            },
+            set: function(key, val) {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction("store", "readwrite");
+                    tx.objectStore("store").put(val, key);
+                    tx.oncomplete = () => resolve();
+                });
+            },
+            del: function(key) {
+                return new Promise((resolve) => {
+                    const tx = this.db.transaction("store", "readwrite");
+                    tx.objectStore("store").delete(key);
+                    tx.oncomplete = () => resolve();
+                });
+            }
+        };
+
+        var appData = { books: [] };
+        var musicTracks = []; // Array to store music file metadata and blobs
+        var currentBookId = null; var currentChapterId = null; var currentCharId = null;
+        var currentSetId = null; var currentPlotId = null; var currentView = 'home'; 
+        var autoSaveTimer = null; var isZenMode = false;
+        
+        // Music Player Variables
+        var audioPlayer = new Audio();
+        var currentTrackIndex = -1;
+        var isPlaying = false;
+
+        var bookColors = ['#c0392b', '#2980b9', '#27ae60', '#8e44ad', '#d35400', '#16a085', '#c0392b', '#2980b9'];
+        var catOptions = [
+            { name: 'Banana Cat', 
+            walk: 'banana-cat.gif', 
+            happy: 'banana-cat-happy.gif',
+           freeze:'banana-cat-crying.gif' },
+           
+            { name: 'Rainbow Cat', walk: 'rainbow-cat.gif' },
+           
+            { name: 'Driver Cat', walk: 'driving-cat.gif' }
+        ];
+        var defaultCat = { walk: 'https://media.tenor.com/On7kvXhzml4AAAAj/loading-cat.gif', happy: 'https://media.tenor.com/2s9QKwXqXqAAAAAi/happy-cat.gif', freeze: 'https://media.tenor.com/3X1XqXqXqAAAAi/sleeping-cat.gif' };
+        var catSettings = { catIndex: 0, size: 80, speed: 1.5, enabled: true };
+
+        // --- CUSTOM MODAL FUNCTIONS ---
+        function closeModal() {
+            document.getElementById('customModalOverlay').classList.remove('active');
+            document.getElementById('modalInputField').style.display = 'none';
+            document.getElementById('modalInputField').value = '';
+        }
+
+        function showCustomPrompt(message, callback) {
+            document.getElementById('modalTitleText').innerText = message;
+            var input = document.getElementById('modalInputField');
+            input.style.display = 'block';
+            input.value = '';
+            
+            var btnContainer = document.getElementById('modalButtonsContainer');
+            btnContainer.innerHTML = `
+                <button class="modal-btn cancel" onclick="closeModal(); ${callback ? callback.name + '(null)' : ''}">Cancel</button>
+                <button class="modal-btn confirm" id="modalOkBtn">OK</button>
+            `;
+            
+            document.getElementById('customModalOverlay').classList.add('active');
+            setTimeout(function() { input.focus(); }, 100);
+            
+            document.getElementById('modalOkBtn').onclick = function() {
+                var val = input.value;
+                closeModal();
+                if (callback) callback(val);
+            };
+        }
+
+        function showCustomConfirm(message, callback, isDanger) {
+            document.getElementById('modalTitleText').innerText = message;
+            document.getElementById('modalInputField').style.display = 'none';
+            
+            var btnContainer = document.getElementById('modalButtonsContainer');
+            var btnClass = isDanger ? 'danger' : 'confirm';
+            btnContainer.innerHTML = `
+                <button class="modal-btn cancel" onclick="closeModal(); ${callback ? callback.name + '(false)' : ''}">No</button>
+                <button class="modal-btn ${btnClass}" id="modalYesBtn">Yes</button>
+            `;
+            
+            document.getElementById('customModalOverlay').classList.add('active');
+            
+            document.getElementById('modalYesBtn').onclick = function() {
+                closeModal();
+                if (callback) callback(true);
+            };
+        }
+
+        // --- APP LOGIC ---
+        async function loadData() {
+            await AppDB.open();
+            var savedData = await AppDB.get('storyforge_data');
+            var savedCatSettings = await AppDB.get('storyforge_cat_settings');
+            var savedMusic = await AppDB.get('storyforge_music');
+            
+            if (savedData) { appData = savedData; }
+            else { appData.books.push({ id: Date.now(), title: "The Dragon's Secret", summary: "A fantasy epic.", chapters: [], characters: [], settings: [], plot: [] }); saveData(); }
+            if (savedCatSettings) { catSettings = savedCatSettings; }
+            if (savedMusic) { musicTracks = savedMusic; }
+            
+            renderBooks(); initCat(); renderTracks();
+        }
+        
+        function saveData() { AppDB.set('storyforge_data', appData); }
+        function saveCatSettings() { AppDB.set('storyforge_cat_settings', catSettings); }
+        function saveMusicData() { AppDB.set('storyforge_music', musicTracks); }
+        
+        function getActiveBook() { return appData.books.find(function(b) { return b.id === currentBookId; }); }
+        function getActiveChapter() { var b = getActiveBook(); return b ? b.chapters.find(function(c) { return c.id === currentChapterId; }) : null; }
+        function getActiveChar() { var b = getActiveBook(); return b ? b.characters.find(function(c) { return c.id === currentCharId; }) : null; }
+        function getActiveSet() { var b = getActiveBook(); return b ? b.settings.find(function(s) { return s.id === currentSetId; }) : null; }
+        function getActivePlot() { var b = getActiveBook(); return b ? b.plot.find(function(p) { return p.id === currentPlotId; }) : null; }
+
+        function updateHeader(title, showBack, showAction, actionIcon) {
+            document.getElementById('headerTitle').innerText = title;
+            document.getElementById('backBtn').classList.toggle('hidden', !showBack);
+            document.getElementById('actionBtn').classList.toggle('hidden', !showAction);
+            document.getElementById('actionBtn').innerText = actionIcon || '+';
+            var isEditor = currentView === 'editor';
+            document.getElementById('zenBtn').classList.toggle('hidden', !isEditor);
+        }
+
+        function switchView(viewId) {
+            var views = document.querySelectorAll('.view');
+            for (var i = 0; i < views.length; i++) { views[i].classList.remove('active'); }
+            document.getElementById(viewId).classList.add('active');
+            currentView = viewId.replace('View', '').replace('List', '');
+            var isEditor = viewId === 'editorView';
+            document.getElementById('bottomNav').style.display = isEditor ? 'none' : 'flex';
+            document.getElementById('editorStats').style.display = isEditor ? 'block' : 'none';
+            
+            // Show music player bar only if not in editor/zen mode
+            if (isEditor || isZenMode) {
+                document.getElementById('musicPlayerBar').classList.remove('active');
+            } else if (currentTrackIndex !== -1) {
+                document.getElementById('musicPlayerBar').classList.add('active');
+            }
+
+            if (!isEditor && isZenMode) { toggleZenMode(); }
+        }
+
+        function goBack() {
+            if (currentView === 'editor') { saveCurrentChapter(); switchView('chaptersView'); renderChapters(); updateHeader('Chapters', true, true, '+'); }
+            else if (currentView === 'characterDetail') { saveCharacterDetail(); switchView('charactersView'); renderCharacters(); updateHeader('Characters', true, true, '+'); }
+            else if (currentView === 'settingDetail') { saveSettingDetail(); switchView('settingsModuleView'); renderSettingsModule(); updateHeader('Settings', true, true, '+'); }
+            else if (currentView === 'plotDetail') { savePlotDetail(); switchView('plotsView'); renderPlots(); updateHeader('Plot Outline', true, true, '+'); }
+            else if (currentView === 'searchResults') { switchView('dashView'); document.getElementById('dashSearch').value = ''; updateHeader('Project Dashboard', true, false); }
+            else if (currentView === 'chapters' || currentView === 'characters' || currentView === 'settingsModule' || currentView === 'plots' || currentView === 'music') { switchView('dashView'); updateHeader('Project Dashboard', true, false); }
+            else if (currentView === 'dash' || currentView === 'assistant' || currentView === 'appSettings') { goHome(); }
+        }
+
+        function goHome() {
+            if (currentView === 'editor') saveCurrentChapter();
+            if (currentView === 'characterDetail') saveCharacterDetail();
+            if (currentView === 'settingDetail') saveSettingDetail();
+            if (currentView === 'plotDetail') savePlotDetail();
+            switchView('homeView'); renderBooks(); updateHeader('My Bookshelf', false, true, '+');
+            currentBookId = null; currentChapterId = null; currentCharId = null; currentSetId = null; currentPlotId = null;
+        }
+
+        function handleAction() {
+            if (currentView === 'home') addNewBook();
+            else if (currentView === 'chapters') addNewChapter();
+            else if (currentView === 'characters') addNewCharacter();
+            else if (currentView === 'settingsModule') addNewSetting();
+            else if (currentView === 'plots') addNewPlot();
+        }
+
+        function toggleZenMode() {
+            isZenMode = !isZenMode;
+            document.body.classList.toggle('zen-mode', isZenMode);
+        }
+
+        // --- MUSIC PLAYER FUNCTIONS ---
+        function openMusic() {
+            switchView('musicView');
+            updateHeader('Music Library', true, false);
+            renderTracks();
+        }
+
+        function handleMusicUpload(event) {
+            var files = event.target.files;
+            if (files.length === 0) return;
+            
+            for (var i = 0; i < files.length; i++) {
+                var file = files[i];
+                // Save the file object (Blob) directly to our array
+                musicTracks.push({
+                    id: Date.now() + i,
+                    name: file.name.replace('.mp3', '').replace('.mpeg', ''),
+                    file: file
+                });
+            }
+            saveMusicData();
+            renderTracks();
+            event.target.value = ''; // Reset input
+        }
+
+        function renderTracks() {
+            var container = document.getElementById('trackListContainer');
+            container.innerHTML = '';
+            if (musicTracks.length === 0) {
+                container.innerHTML = '<div class="empty-state">No music uploaded yet.<br>Tap the button above to add MP3s!</div>';
+                return;
+            }
+            musicTracks.forEach(function(track, index) {
+                var item = document.createElement('div');
+                item.className = 'track-item' + (index === currentTrackIndex ? ' playing' : '');
+                item.innerHTML = `
+                    <div class="track-icon">🎵</div>
+                    <div class="track-info" onclick="playTrack(${index})">
+                        <div class="track-title">${track.name}</div>
+                        <div class="track-artist">Unknown Artist</div>
+                    </div>
+                    <button class="delete-icon-btn" onclick="deleteTrack(${index}, event)">🗑️</button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function playTrack(index) {
+            if (index < 0 || index >= musicTracks.length) return;
+            currentTrackIndex = index;
+            var track = musicTracks[index];
+            
+            // Create object URL from the stored Blob
+            var url = URL.createObjectURL(track.file);
+            audioPlayer.src = url;
+            audioPlayer.play();
+            isPlaying = true;
+            
+            document.getElementById('playerTitle').innerText = track.name;
+            document.getElementById('playPauseBtn').innerText = '⏸';
+            document.getElementById('musicPlayerBar').classList.add('active');
+            renderTracks(); // Update UI to show playing state
+        }
+
+        function togglePlay() {
+            if (currentTrackIndex === -1) return;
+            if (isPlaying) {
+                audioPlayer.pause();
+                document.getElementById('playPauseBtn').innerText = '▶';
+            } else {
+                audioPlayer.play();
+                document.getElementById('playPauseBtn').innerText = '⏸';
+            }
+            isPlaying = !isPlaying;
+        }
+
+        function prevTrack() {
+            if (currentTrackIndex > 0) playTrack(currentTrackIndex - 1);
+            else if (musicTracks.length > 0) playTrack(musicTracks.length - 1);
+        }
+
+        function nextTrack() {
+            if (currentTrackIndex < musicTracks.length - 1) playTrack(currentTrackIndex + 1);
+            else if (musicTracks.length > 0) playTrack(0);
+        }
+
+        function deleteTrack(index, event) {
+            event.stopPropagation();
+            showCustomConfirm("Delete this song?", function(res) {
+                if (res) {
+                    if (index === currentTrackIndex) {
+                        audioPlayer.pause();
+                        audioPlayer.src = '';
+                        currentTrackIndex = -1;
+                        isPlaying = false;
+                        document.getElementById('musicPlayerBar').classList.remove('active');
+                    } else if (index < currentTrackIndex) {
+                        currentTrackIndex--;
+                    }
+                    musicTracks.splice(index, 1);
+                    saveMusicData();
+                    renderTracks();
+                }
+            }, true);
+        }
+
+        function seekAudio() {
+            var seekBar = document.getElementById('seekBar');
+            if (audioPlayer.duration) {
+                audioPlayer.currentTime = (seekBar.value / 100) * audioPlayer.duration;
+            }
+        }
+
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return "0:00";
+            var mins = Math.floor(seconds / 60);
+            var secs = Math.floor(seconds % 60);
+            return mins + ":" + (secs < 10 ? "0" : "") + secs;
+        }
+
+        // Audio Event Listeners
+        audioPlayer.addEventListener('timeupdate', function() {
+            if (audioPlayer.duration) {
+                var progress = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+                document.getElementById('seekBar').value = progress;
+                document.getElementById('currentTime').innerText = formatTime(audioPlayer.currentTime);
+                document.getElementById('duration').innerText = formatTime(audioPlayer.duration);
+            }
+        });
+
+        audioPlayer.addEventListener('ended', function() {
+            nextTrack();
+        });
+
+        // --- SEARCH & OTHER FUNCTIONS ---
+        function handleSearch() {
+            var query = document.getElementById('dashSearch').value.toLowerCase().trim();
+            if (query.length < 2) { 
+                showCustomConfirm("Please type at least 2 letters to search.", null, false);
+                return; 
+            }
+            var book = getActiveBook();
+            if (!book) return;
+            var results = [];
+            book.chapters.forEach(function(chap) {
+                if (chap.content && chap.content.toLowerCase().includes(query)) {
+                    results.push({ type: 'Chapter', title: chap.title, snippet: chap.content.substring(0, 50) + '...', id: chap.id });
+                }
+            });
+            book.characters.forEach(function(char) {
+                var text = (char.name + ' ' + char.role + ' ' + char.backstory).toLowerCase();
+                if (text.includes(query)) { results.push({ type: 'Character', title: char.name || 'Unnamed', snippet: char.role || 'No role', id: char.id }); }
+            });
+            book.settings.forEach(function(set) {
+                var text = (set.name + ' ' + set.description).toLowerCase();
+                if (text.includes(query)) { results.push({ type: 'Location', title: set.name || 'Unnamed', snippet: set.description ? set.description.substring(0, 50) + '...' : '', id: set.id }); }
+            });
+            book.plot.forEach(function(plot) {
+                var text = (plot.title + ' ' + plot.description).toLowerCase();
+                if (text.includes(query)) { results.push({ type: 'Plot', title: plot.title || 'Untitled', snippet: plot.description ? plot.description.substring(0, 50) + '...' : '', id: plot.id }); }
+            });
+            renderSearchResults(results);
+            switchView('searchResultsView');
+            updateHeader('Search Results', true, false);
+        }
+
+        function renderSearchResults(results) {
+            var list = document.getElementById('searchResultsList');
+            list.innerHTML = '';
+            if (results.length === 0) { list.innerHTML = '<div class="empty-state">No matches found for your search.</div>'; return; }
+            results.forEach(function(res) {
+                var item = document.createElement('div');
+                item.className = 'list-item';
+                item.innerHTML = '<div style="flex:1;"><h4>' + res.type + ': ' + res.title + '</h4><p>' + res.snippet + '</p></div><span>→</span>';
+                item.onclick = function() {
+                    if (res.type === 'Chapter') openEditor(res.id);
+                    else if (res.type === 'Character') openCharacterDetail(res.id);
+                    else if (res.type === 'Location') openSettingDetail(res.id);
+                    else if (res.type === 'Plot') openPlotDetail(res.id);
+                };
+                list.appendChild(item);
+            });
+        }
+
+        function renderBooks() {
+            var container = document.getElementById('bookshelfContainer');
+            container.innerHTML = '';
+            var shelfRow = document.createElement('div'); shelfRow.className = 'shelf-row';
+            appData.books.forEach(function(book, index) {
+                var color = bookColors[index % bookColors.length];
+                var bookEl = document.createElement('div'); bookEl.className = 'book-spine'; bookEl.style.backgroundColor = color;
+                bookEl.onclick = function() { openDashboard(book.id); };
+                var titleEl = document.createElement('div'); titleEl.className = 'book-title-vertical'; titleEl.innerText = book.title;
+                bookEl.appendChild(titleEl); shelfRow.appendChild(bookEl);
+            });
+            var addBtn = document.createElement('div'); addBtn.className = 'add-book-spine'; addBtn.innerText = '+'; addBtn.onclick = addNewBook;
+            shelfRow.appendChild(addBtn); container.appendChild(shelfRow);
+        }
+
+        function addNewBook() {
+            showCustomPrompt("Enter the title of your new novel:", function(title) {
+                if (title) {
+                    showCustomPrompt("Enter a short summary (optional):", function(summary) {
+                        summary = summary || "No summary yet.";
+                        appData.books.push({ id: Date.now(), title: title, summary: summary, chapters: [], characters: [], settings: [], plot: [] });
+                        saveData(); renderBooks();
+                    });
+                }
+            });
+        }
+
+        function deleteBook() {
+            showCustomConfirm("Are you sure you want to delete this book?", function(res1) {
+                if (res1) {
+                    showCustomConfirm("Double check: This will permanently delete the book and cannot be undone. Proceed?", function(res2) {
+                        if (res2) {
+                            appData.books = appData.books.filter(function(b) { return b.id !== currentBookId; });
+                            saveData(); goHome();
+                        }
+                    }, true);
+                }
+            }, true);
+        }
+
+        function openDashboard(bookId) {
+            currentBookId = bookId; var book = getActiveBook();
+            document.getElementById('dashBookTitle').innerText = book.title;
+            document.getElementById('dashBookSummary').innerText = book.summary;
+            document.getElementById('dashSearch').value = '';
+            var totalWords = 0;
+            book.chapters.forEach(function(chap) {
+                if (chap.content) totalWords += chap.content.trim().split(/\s+/).filter(function(w) { return w; }).length;
+            });
+            document.getElementById('dashTotalWords').innerText = totalWords.toLocaleString() + ' words total';
+            switchView('dashView'); updateHeader('Project Dashboard', true, false);
+        }
+
+        function renderChapters() {
+            var list = document.getElementById('chapterList'); list.innerHTML = ''; var book = getActiveBook(); if (!book) return;
+            if (book.chapters.length === 0) { list.innerHTML = '<div class="empty-state">No chapters yet. Tap + to add one!</div>'; return; }
+            book.chapters.forEach(function(chap) {
+                var words = chap.content ? chap.content.trim().split(/\s+/).filter(function(w) { return w; }).length : 0;
+                var item = document.createElement('div'); item.className = 'list-item';
+                item.innerHTML = '<div style="flex:1;" onclick="openEditor(' + chap.id + ')"><h4>' + chap.title + '</h4><p>' + words + ' words</p></div><button class="delete-icon-btn" onclick="deleteChapter(' + chap.id + ', event)">🗑️</button>';
+                list.appendChild(item);
+            });
+        }
+        function openChapters() { switchView('chaptersView'); renderChapters(); updateHeader('Chapters', true, true, '+'); }
+        function addNewChapter() { 
+            showCustomPrompt("Enter chapter title:", function(title) {
+                if (title) { var book = getActiveBook(); book.chapters.push({ id: Date.now(), title: title, content: "" }); saveData(); renderChapters(); }
+            });
+        }
+        function deleteChapter(id, event) { 
+            event.stopPropagation(); 
+            showCustomConfirm("Are you sure you want to delete this chapter?", function(res1) {
+                if (res1) {
+                    showCustomConfirm("Double check: This will permanently delete the chapter. Proceed?", function(res2) {
+                        if (res2) { var book = getActiveBook(); book.chapters = book.chapters.filter(function(c) { return c.id !== id; }); saveData(); renderChapters(); }
+                    }, true);
+                }
+            }, true);
+        }
+        function openEditor(chapterId) {
+            currentChapterId = chapterId; var chap = getActiveChapter();
+            document.getElementById('editorTextarea').value = chap.content || "";
+            switchView('editorView'); updateHeader(chap.title, true, false); onType();
+        }
+        function onType() {
+            var text = document.getElementById('editorTextarea').value;
+            var words = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+            document.getElementById('editorStats').innerText = words + 'w | ' + text.length + 'c';
+            clearTimeout(autoSaveTimer); autoSaveTimer = setTimeout(saveCurrentChapter, 1000);
+        }
+        function saveCurrentChapter() { var chap = getActiveChapter(); if (chap) { chap.content = document.getElementById('editorTextarea').value; saveData(); } }
+
+        function renderCharacters() {
+            var list = document.getElementById('characterList'); list.innerHTML = ''; var book = getActiveBook(); if (!book) return;
+            if (book.characters.length === 0) { list.innerHTML = '<div class="empty-state">No characters yet. Tap + to add one!</div>'; return; }
+            book.characters.forEach(function(char) {
+                var item = document.createElement('div'); item.className = 'list-item';
+                item.innerHTML = '<div style="flex:1;" onclick="openCharacterDetail(' + char.id + ')"><h4>' + (char.name || 'Unnamed Character') + '</h4><p>' + (char.role || 'No role') + '</p></div><button class="delete-icon-btn" onclick="deleteCharacter(' + char.id + ', event)">🗑️</button>';
+                list.appendChild(item);
+            });
+        }
+        function openCharacters() { switchView('charactersView'); renderCharacters(); updateHeader('Characters', true, true, '+'); }
+        function addNewCharacter() { 
+            showCustomPrompt("Enter character name:", function(name) {
+                if (name) { var book = getActiveBook(); book.characters.push({ id: Date.now(), name: name, role: '', age: '', appearance: '', personality: '', backstory: '' }); saveData(); renderCharacters(); }
+            });
+        }
+        function deleteCharacter(id, event) { 
+            if (event) event.stopPropagation(); 
+            var charIdToDelete = id || currentCharId;
+            showCustomConfirm("Are you sure you want to delete this character?", function(res1) {
+                if (res1) {
+                    showCustomConfirm("Double check: This will permanently delete the character. Proceed?", function(res2) {
+                        if (res2) { var book = getActiveBook(); book.characters = book.characters.filter(function(c) { return c.id !== charIdToDelete; }); saveData(); if (currentView === 'characterDetail') goBack(); else renderCharacters(); }
+                    }, true);
+                }
+            }, true);
+        }
+        function openCharacterDetail(charId) {
+            currentCharId = charId; var char = getActiveChar();
+            document.getElementById('charName').value = char.name || ''; document.getElementById('charRole').value = char.role || '';
+            document.getElementById('charAge').value = char.age || ''; document.getElementById('charAppearance').value = char.appearance || '';
+            document.getElementById('charPersonality').value = char.personality || ''; document.getElementById('charBackstory').value = char.backstory || '';
+            switchView('characterDetailView'); updateHeader(char.name || 'Character', true, false);
+        }
+        function saveCharacterDetail() {
+            var char = getActiveChar(); if (char) {
+                char.name = document.getElementById('charName').value; char.role = document.getElementById('charRole').value;
+                char.age = document.getElementById('charAge').value; char.appearance = document.getElementById('charAppearance').value;
+                char.personality = document.getElementById('charPersonality').value; char.backstory = document.getElementById('charBackstory').value;
+                saveData();
+            }
+        }
+
+        function renderSettingsModule() {
+            var list = document.getElementById('settingList'); list.innerHTML = ''; var book = getActiveBook(); if (!book) return;
+            if (book.settings.length === 0) { list.innerHTML = '<div class="empty-state">No locations yet. Tap + to add one!</div>'; return; }
+            book.settings.forEach(function(set) {
+                var item = document.createElement('div'); item.className = 'list-item';
+                item.innerHTML = '<div style="flex:1;" onclick="openSettingDetail(' + set.id + ')"><h4>' + (set.name || 'Unnamed Location') + '</h4><p>' + (set.description ? set.description.substring(0, 30) + '...' : 'No description') + '</p></div><button class="delete-icon-btn" onclick="deleteSetting(' + set.id + ', event)">🗑️</button>';
+                list.appendChild(item);
+            });
+        }
+        function openSettingsModule() { switchView('settingsModuleView'); renderSettingsModule(); updateHeader('Settings', true, true, '+'); }
+        function addNewSetting() { 
+            showCustomPrompt("Enter location name:", function(name) {
+                if (name) { var book = getActiveBook(); book.settings.push({ id: Date.now(), name: name, description: '', sensory: '' }); saveData(); renderSettingsModule(); }
+            });
+        }
+        function deleteSetting(id, event) { 
+            if (event) event.stopPropagation(); 
+            var setIdToDelete = id || currentSetId;
+            showCustomConfirm("Are you sure you want to delete this location?", function(res1) {
+                if (res1) {
+                    showCustomConfirm("Double check: This will permanently delete the location. Proceed?", function(res2) {
+                        if (res2) { var book = getActiveBook(); book.settings = book.settings.filter(function(s) { return s.id !== setIdToDelete; }); saveData(); if (currentView === 'settingDetail') goBack(); else renderSettingsModule(); }
+                    }, true);
+                }
+            }, true);
+        }
+        function openSettingDetail(setId) {
+            currentSetId = setId; var set = getActiveSet();
+            document.getElementById('setName').value = set.name || ''; document.getElementById('setDesc').value = set.description || '';
+            document.getElementById('setSensory').value = set.sensory || '';
+            switchView('settingDetailView'); updateHeader(set.name || 'Location', true, false);
+        }
+        function saveSettingDetail() {
+            var set = getActiveSet(); if (set) {
+                set.name = document.getElementById('setName').value; set.description = document.getElementById('setDesc').value;
+                set.sensory = document.getElementById('setSensory').value; saveData();
+            }
+        }
+
+        function renderPlots() {
+            var list = document.getElementById('plotList'); list.innerHTML = ''; var book = getActiveBook(); if (!book) return;
+            if (book.plot.length === 0) { list.innerHTML = '<div class="empty-state">No plot points yet. Tap + to add one!</div>'; return; }
+            book.plot.forEach(function(plot) {
+                var item = document.createElement('div'); item.className = 'list-item';
+                item.innerHTML = '<div style="flex:1;" onclick="openPlotDetail(' + plot.id + ')"><h4>' + (plot.title || 'Untitled Plot') + '</h4><p>' + plot.act + '</p></div><button class="delete-icon-btn" onclick="deletePlot(' + plot.id + ', event)">🗑️</button>';
+                list.appendChild(item);
+            });
+        }
+        function openPlots() { switchView('plotsView'); renderPlots(); updateHeader('Plot Outline', true, true, '+'); }
+        function addNewPlot() { 
+            showCustomPrompt("Enter plot point title:", function(title) {
+                if (title) { var book = getActiveBook(); book.plot.push({ id: Date.now(), title: title, act: 'Beginning', description: '' }); saveData(); renderPlots(); }
+            });
+        }
+        function deletePlot(id, event) { 
+            if (event) event.stopPropagation(); 
+            var plotIdToDelete = id || currentPlotId;
+            showCustomConfirm("Are you sure you want to delete this plot point?", function(res1) {
+                if (res1) {
+                    showCustomConfirm("Double check: This will permanently delete the plot point. Proceed?", function(res2) {
+                        if (res2) { var book = getActiveBook(); book.plot = book.plot.filter(function(p) { return p.id !== plotIdToDelete; }); saveData(); if (currentView === 'plotDetail') goBack(); else renderPlots(); }
+                    }, true);
+                }
+            }, true);
+        }
+        function openPlotDetail(plotId) {
+            currentPlotId = plotId; var plot = getActivePlot();
+            document.getElementById('plotTitle').value = plot.title || ''; document.getElementById('plotAct').value = plot.act || 'Beginning';
+            document.getElementById('plotDesc').value = plot.description || '';
+            switchView('plotDetailView'); updateHeader(plot.title || 'Plot Point', true, false);
+        }
+        function savePlotDetail() {
+            var plot = getActivePlot(); if (plot) {
+                plot.title = document.getElementById('plotTitle').value; plot.act = document.getElementById('plotAct').value;
+                plot.description = document.getElementById('plotDesc').value; saveData();
+            }
+        }
+
+        function openAssistant() { switchView('assistantView'); updateHeader('Writing Assistant', true, false); loadGoalProgress(); }
+        function generatePrompt() {
+            var prompts = ["Your protagonist finds a door in their house that wasn't there yesterday.", "Two characters who hate each other are forced to share a small space for 24 hours.", "A character receives a letter from someone who has been dead for ten years.", "The weather suddenly changes in a way that is physically impossible.", "A character discovers a secret about their best friend that changes everything.", "Someone knocks on the door at 3 AM. When the character opens it, no one is there, but there is a gift on the mat."];
+            document.getElementById('promptText').innerText = prompts[Math.floor(Math.random() * prompts.length)];
+        }
+        function generateQuote() {
+            var quotes = ['"You can always edit a bad page. You can\'t edit a blank page." - Jodi Picoult', '"The first draft is just you telling yourself the story." - Terry Pratchett', '"Writing is rewriting." - Michael Crichton', '"Don\'t get it right, just get it written." - James Thurber', '"A professional writer is an amateur who didn\'t quit." - Richard Bach', '"Start writing, no matter what. The water does not flow until the faucet is turned on." - Louis L\'Amour'];
+            document.getElementById('quoteText').innerText = quotes[Math.floor(Math.random() * quotes.length)];
+        }
+        function setDailyGoal() { var goal = parseInt(document.getElementById('dailyGoalInput').value); if (goal > 0) { AppDB.set('storyforge_daily_goal', goal); loadGoalProgress(); } }
+        async function loadGoalProgress() {
+            var goal = await AppDB.get('storyforge_daily_goal') || 0;
+            document.getElementById('dailyGoalInput').value = goal > 0 ? goal : '';
+            var totalWords = 0;
+            appData.books.forEach(function(book) { book.chapters.forEach(function(chap) { if (chap.content) { totalWords += chap.content.trim().split(/\s+/).filter(function(w) { return w; }).length; } }); });
+            var percentage = goal > 0 ? Math.min((totalWords / goal) * 100, 100) : 0;
+            document.getElementById('goalProgressBar').style.width = percentage + '%';
+            document.getElementById('goalProgressText').innerText = totalWords + ' / ' + goal + ' words total';
+        }
+        function exportNovel() {
+            var book = getActiveBook(); if (!book || book.chapters.length === 0) { showCustomConfirm("You don't have any chapters to export yet!", null, false); return; }
+            var exportText = book.title.toUpperCase() + "\n\nSummary: " + book.summary + "\n\n========================================\n\n";
+            book.chapters.forEach(function(chap) { exportText += chap.title.toUpperCase() + "\n\n" + (chap.content || "[Empty Chapter]") + "\n\n----------------------------------------\n\n"; });
+            var blob = new Blob([exportText], { type: 'text/plain' }); var url = URL.createObjectURL(blob);
+            var a = document.createElement('a'); a.href = url; a.download = book.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() + '.txt';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        }
+        function openAppSettings() { switchView('appSettingsView'); updateHeader('App Settings', true, false); renderCatSelectionGrid(); document.getElementById('catSizeSelect').value = catSettings.size; document.getElementById('catSpeedSelect').value = catSettings.speed; document.getElementById('catToggleBtn').innerText = catSettings.enabled ? 'Disable Cat' : 'Enable Cat'; }
+        async function resetAppData() { 
+            showCustomConfirm("Are you absolutely sure? This will delete ALL your books, chapters, and characters forever.", function(res1) {
+                if (res1) {
+                    showCustomConfirm("FINAL WARNING: This cannot be undone. Delete everything?", async function(res2) {
+                        if (res2) { 
+                            await AppDB.del('storyforge_data'); 
+                            await AppDB.del('storyforge_daily_goal'); 
+                            await AppDB.del('storyforge_music'); 
+                            appData = { books: [] }; 
+                            musicTracks = [];
+                            goHome(); 
+                            showCustomConfirm("App data has been reset.", null, false); 
+                        }
+                    }, true);
+                }
+            }, true);
+        }
+
+        function renderCatSelectionGrid() {
+            var grid = document.getElementById('catSelectionGrid'); grid.innerHTML = '';
+            catOptions.forEach(function(cat, index) {
+                var option = document.createElement('div'); option.className = 'cat-option' + (index === catSettings.catIndex ? ' selected' : '');
+                option.innerHTML = '<img class="cat-preview" src="' + cat.walk + '" alt="' + cat.name + '"><div class="cat-name">' + cat.name + '</div>';
+                option.onclick = function() { selectCat(index); }; grid.appendChild(option);
+            });
+        }
+        function selectCat(index) { catSettings.catIndex = index; saveCatSettings(); renderCatSelectionGrid(); updateCatAppearance(); }
+        function updateCatSettings() { catSettings.size = parseInt(document.getElementById('catSizeSelect').value); catSettings.speed = parseFloat(document.getElementById('catSpeedSelect').value); saveCatSettings(); updateCatAppearance(); }
+        function toggleCat() { catSettings.enabled = !catSettings.enabled; saveCatSettings(); document.getElementById('catToggleBtn').innerText = catSettings.enabled ? 'Disable Cat' : 'Enable Cat'; document.getElementById('catSprite').style.display = catSettings.enabled ? 'block' : 'none'; }
+        function updateCatAppearance() { var catSprite = document.getElementById('catSprite'); var currentCat = catOptions[catSettings.catIndex] || defaultCat; catSprite.src = currentCat.walk; catSprite.style.width = catSettings.size + 'px'; catSprite.style.height = catSettings.size + 'px'; }
+
+        function initCat() {
+            var catSprite = document.getElementById('catSprite'); var catOverlay = document.getElementById('catOverlay');
+            updateCatAppearance(); if (!catSettings.enabled) { catSprite.style.display = 'none'; }
+            var cat = { x: window.innerWidth / 2, y: window.innerHeight / 2, tx: window.innerWidth / 2, ty: window.innerHeight / 2, speed: catSettings.speed, frozen: false, dragging: false, dragOffsetX: 0, dragOffsetY: 0, lastTapTime: 0, moveDistance: 0, startX: 0, startY: 0 };
+            function updateCatPosition() { catSprite.style.transform = 'translate(' + cat.x + 'px, ' + cat.y + 'px)'; }
+            function pickNewTarget() { var padding = 50; cat.tx = padding + Math.random() * (window.innerWidth - padding * 2); cat.ty = padding + Math.random() * (window.innerHeight - padding * 2); }
+            function catLoop() {
+                if (catSettings.enabled && !cat.frozen && !cat.dragging) {
+                    cat.speed = catSettings.speed; var dx = cat.tx - cat.x; var dy = cat.ty - cat.y; var dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < cat.speed) { cat.x = cat.tx; cat.y = cat.ty; pickNewTarget(); } else { cat.x += (dx / dist) * cat.speed; cat.y += (dy / dist) * cat.speed; }
+                    if (dx < 0) { catSprite.style.transform = 'translate(' + cat.x + 'px, ' + cat.y + 'px) scaleX(-1)'; } else { catSprite.style.transform = 'translate(' + cat.x + 'px, ' + cat.y + 'px) scaleX(1)'; }
+                }
+                requestAnimationFrame(catLoop);
+            }
+            catSprite.addEventListener('pointerdown', function(e) { if (!catSettings.enabled) return; e.preventDefault(); cat.dragging = true; cat.dragOffsetX = e.clientX - cat.x; cat.dragOffsetY = e.clientY - cat.y; cat.startX = e.clientX; cat.startY = e.clientY; cat.moveDistance = 0; catSprite.setPointerCapture(e.pointerId); });
+            catSprite.addEventListener('pointermove', function(e) { if (!catSettings.enabled) return; if (cat.dragging) { e.preventDefault(); cat.x = e.clientX - cat.dragOffsetX; cat.y = e.clientY - cat.dragOffsetY; var dx = e.clientX - cat.startX; var dy = e.clientY - cat.startY; cat.moveDistance += Math.sqrt(dx * dx + dy * dy); catSprite.style.transform = 'translate(' + cat.x + 'px, ' + cat.y + 'px)'; } });
+            catSprite.addEventListener('pointerup', function(e) { 
+                if (!catSettings.enabled) return; 
+                cat.dragging = false; 
+                catSprite.releasePointerCapture(e.pointerId); 
+                var currentTime = new Date().getTime(); 
+                var tapLength = currentTime - cat.lastTapTime; 
+                if (cat.moveDistance < 10) { 
+                    if (tapLength < 300 && tapLength > 0) { 
+                        cat.frozen = !cat.frozen; 
+                        var currentCat = catOptions[catSettings.catIndex] || defaultCat;
+                        var freezeGif = currentCat.freeze || defaultCat.freeze;
+                        catSprite.src = cat.frozen ? freezeGif : currentCat.walk; 
+                        cat.lastTapTime = 0; 
+                    } else { 
+                        petCat(e.clientX, e.clientY); 
+                        cat.lastTapTime = currentTime; 
+                    } 
+                } 
+            });
+            function petCat(x, y) { 
+                var currentCat = catOptions[catSettings.catIndex] || defaultCat; 
+                var happyGif = currentCat.happy || defaultCat.happy;
+                catSprite.src = happyGif; 
+                setTimeout(function() { 
+                    if (!cat.frozen && catSettings.enabled) {
+                        catSprite.src = currentCat.walk; 
+                    }
+                }, 1500); 
+                var heart = document.createElement('div'); 
+                heart.className = 'heart-particle'; 
+                heart.innerText = '❤️'; 
+                heart.style.left = (x - 12) + 'px'; 
+                heart.style.top = (y - 40) + 'px'; 
+                catOverlay.appendChild(heart); 
+                setTimeout(function() { heart.remove(); }, 1000); 
+            }
+            updateCatPosition(); pickNewTarget(); catLoop();
+        }
+
+        loadData(); updateHeader('My Bookshelf', false, true, '+');
+    </script>
+</body>
+</html>
